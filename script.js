@@ -39,6 +39,8 @@ function spellCheck() {
     if (textEntered === originText) {
         testWrapper.style.borderColor = "green"; // correct finish
         clearInterval(interval); // stop the timer
+
+        saveScore(); // save the score to localStorage
     }
     else if (textEntered === originTextMatch) {
         testWrapper.style.borderColor = "blue"; // correct so far
@@ -72,3 +74,38 @@ function reset() {
 testArea.addEventListener("keypress", start, false);
 testArea.addEventListener("keyup", spellCheck);
 resetButton.addEventListener("click", reset, false);
+
+
+// other functions:
+function getTotalTime() { // returns total time in seconds to compare
+    return timer[0] * 60 + timer[1] + timer[2] / 100;
+}
+
+function saveScore() {
+    let score = getTotalTime();
+    let scores = JSON.parse(localStorage.getItem("scores")) || [];
+
+    scores.push(score);
+    
+    scores.sort((a, b) => a - b); // sort scores in ascending order
+
+    scores = scores.slice(0, 3); // keep only top 3 scores
+    
+    localStorage.setItem("scores", JSON.stringify(scores));
+    displayScores(); // refresh the displayed scores
+}
+
+function displayScores() {
+    let scores = JSON.parse(localStorage.getItem("scores")) || [];
+    let scoreList = document.getElementById("score-list");
+
+    scoreList.innerHTML = ""; // clear the list
+
+    scores.forEach(score => {
+        let li = document.createElement("li");
+        li.textContent = score.toFixed(2) + " seconds";
+        scoreList.appendChild(li);
+    });
+}
+
+displayScores(); // display scores on page load
