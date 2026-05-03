@@ -1,12 +1,20 @@
 const testWrapper = document.querySelector(".test-wrapper");
 const testArea = document.querySelector("#test-area");
-const originText = document.querySelector("#origin-text p").innerHTML;
+let originText = document.querySelector("#origin-text p").innerHTML;
 const resetButton = document.querySelector("#reset");
 const theTimer = document.querySelector(".timer");
 
 let timer = [0, 0, 0]; // minutes, seconds, hundredths
 let interval;
 let timerRunning = false;
+
+const paragraphs = [
+    "I am one with the force and the force is with me.",
+    "Somehow the emperor returned and they fly now.",
+    "Where we are going we do not need roads.",
+    "What will you have after five hundred years?",
+    "How do we know when the hug is done?"
+];
 
 // Add leading zero to numbers 9 or below (purely for aesthetics):
 function leadingZero(time) {
@@ -68,6 +76,8 @@ function reset() {
     theTimer.innerHTML = "00:00:00";
 
     testWrapper.style.borderColor = "grey";
+    
+    setNewText(); // load a new random text for the next test
 }
 
 // Event listeners for keyboard input and the reset button:
@@ -85,7 +95,12 @@ function saveScore() {
     let score = getTotalTime();
     let scores = JSON.parse(localStorage.getItem("scores")) || [];
 
-    scores.push(score);
+    // prevent duplicate scores (with small tolerance for floating point)
+    const isDuplicate = scores.some(s => Math.abs(s - score) < 0.01);
+
+    if (!isDuplicate) {
+        scores.push(score);
+    }
     
     scores.sort((a, b) => a - b); // sort scores in ascending order
 
@@ -106,6 +121,25 @@ function displayScores() {
         li.textContent = score.toFixed(2) + " seconds";
         scoreList.appendChild(li);
     });
+}
+
+let lastIndex = 0; // to track the last used index for random text
+function getRandomText() {
+    let randomIndex;
+    
+    do {
+        randomIndex = Math.floor(Math.random() * paragraphs.length);
+    } while (randomIndex === lastIndex); // ensure a different text is selected
+    
+    lastIndex = randomIndex; // update last index
+
+    return paragraphs[randomIndex];
+}
+
+function setNewText() {
+    let newText = getRandomText();
+    document.querySelector("#origin-text p").innerHTML = newText;
+    originText = newText;
 }
 
 displayScores(); // display scores on page load
