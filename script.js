@@ -8,6 +8,9 @@ let timer = [0, 0, 0]; // minutes, seconds, hundredths
 let interval;
 let timerRunning = false;
 
+let errorCount = 0;
+let lastLength = 0;
+
 const paragraphs = [
     "I am one with the force and the force is with me.",
     "Somehow the emperor returned and they fly now.",
@@ -30,11 +33,11 @@ function runTimer() {
     theTimer.innerHTML = currentTime;
     timer[2]++; // hundredths
 
-    if (timer[2] == 100) {
+    if (timer[2] === 100) {
         timer[2] = 0;
         timer[1]++; // seconds
     }
-    if (timer[1] == 60) {
+    if (timer[1] === 60) {
         timer[1] = 0;
         timer[0]++; // minutes
     }
@@ -44,11 +47,25 @@ function spellCheck() {
     let textEntered = testArea.value;
     let originTextMatch = originText.substring(0, textEntered.length);
 
+    // only count when typing forwards
+    if (textEntered.length > lastLength) {
+        let currentIndex = textEntered.length - 1;
+
+        if (textEntered[currentIndex] !== originText[currentIndex]) {
+            errorCount++;
+        }
+    }
+
+    lastLength = textEntered.length; // update last length for next check
+    
+    document.getElementById("error-count").textContent = errorCount;
+
     if (textEntered === originText) {
         testWrapper.style.borderColor = "green"; // correct finish
         clearInterval(interval); // stop the timer
 
         saveScore(); // save the score to localStorage
+        calculateWPM(); // calculate and display WPM
     }
     else if (textEntered === originTextMatch) {
         testWrapper.style.borderColor = "blue"; // correct so far
@@ -56,6 +73,8 @@ function spellCheck() {
     else {
         testWrapper.style.borderColor = "red"; // incorrect
     }
+
+    calculateWPM(); // update WPM in real-time as user types
 }
 // Start the timer:
 function start() {
@@ -76,7 +95,15 @@ function reset() {
     theTimer.innerHTML = "00:00:00";
 
     testWrapper.style.borderColor = "grey";
-    
+
+    errorCount = 0;
+    lastLength = 0;
+
+    document.getElementById("error-count").textContent = 0;
+    document.getElementById("wpm").textContent = 0;
+
+    testArea.focus();
+
     setNewText(); // load a new random text for the next test
 }
 
@@ -123,7 +150,8 @@ function displayScores() {
     });
 }
 
-let lastIndex = 0; // to track the last used index for random text
+// to track the last used index for random text
+let lastIndex = -1;
 function getRandomText() {
     let randomIndex;
     
@@ -142,4 +170,15 @@ function setNewText() {
     originText = newText;
 }
 
+function calculateWPM() {
+    let totalChars = testArea.value.length;
+    let totalTime = getTotalTime();
+
+    if (totalTime === 0) return; // prevent division by zero
+
+    let wpm = (totalChars / 5) / (totalTime / 60); // standard WPM calculation
+    document.getElementById("wpm").textContent = Math.max(1, Math.round(wpm));
+}
+
+setNewText(); // load initial text on page load
 displayScores(); // display scores on page load
