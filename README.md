@@ -1,4 +1,4 @@
-# Timed Typing Test App
+# Timed Typing Test
 
 ## Project Overview
 
