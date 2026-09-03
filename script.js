@@ -4,118 +4,175 @@ let originText = document.querySelector("#origin-text p").innerHTML;
 const resetButton = document.querySelector("#reset");
 const theTimer = document.querySelector(".timer");
 
-let timer = [0, 0, 0]; // minutes, seconds, hundredths
 let interval;
 let timerRunning = false;
-
-let errorCount = 0;
-let lastLength = 0;
+let startTime = 0;
+let elapsedTime = 0;
 
 const paragraphs = [
-    "I am one with the force and the force is with me.",
-    "Somehow the emperor returned and they fly now.",
-    "Where we are going we do not need roads.",
-    "What will you have after five hundred years?",
-    "How do we know when the hug is done?"
+    "Learning to build software takes time, but every project is an opportunity to improve. Keep creating, keep experimenting, and use each mistake as a chance to learn.",
+
+    "A good developer does not need to know everything. Researching problems, testing solutions, and learning from documentation are important parts of becoming a better programmer.",
+
+    "Small projects can teach valuable lessons. Building something from beginning to end helps you understand how different parts of an application work together.",
+
+    "Technology changes quickly, so developers are always learning new tools and techniques. Staying curious and practicing regularly makes it easier to adapt.",
+
+    "The best way to improve at programming is to build things. Projects do not have to be perfect to be useful, because mistakes can show you what to learn next."
 ];
 
 // Add leading zero to numbers 9 or below (purely for aesthetics):
 function leadingZero(time) {
     return (time <= 9 ? "0" : "") + time;
 }
+
 // Run a standard minute/second/hundredths timer:
 function runTimer() {
-    let currentTime = 
-        leadingZero(timer[0]) + ":" +
-        leadingZero(timer[1]) + ":" +
-        leadingZero(timer[2]);
+    elapsedTime = performance.now() - startTime;
+
+    let totalHundredths = Math.floor(elapsedTime / 10);
+    let minutes = Math.floor(totalHundredths / 6000);
+    let seconds = Math.floor((totalHundredths % 6000) / 100);
+    let hundredths = totalHundredths % 100;
+    let currentTime =
+        leadingZero(minutes) + ":" +
+        leadingZero(seconds) + ":" +
+        leadingZero(hundredths);
 
     theTimer.innerHTML = currentTime;
-    timer[2]++; // hundredths
-
-    if (timer[2] === 100) {
-        timer[2] = 0;
-        timer[1]++; // seconds
-    }
-    if (timer[1] === 60) {
-        timer[1] = 0;
-        timer[0]++; // minutes
-    }
 }
-// Match the text entered with the provided text on the page:
-function spellCheck() {
-    let textEntered = testArea.value;
-    let originTextMatch = originText.substring(0, textEntered.length);
 
-    // only count when typing forwards
-    if (textEntered.length > lastLength) {
-        let currentIndex = textEntered.length - 1;
+// Count the number of errors in the input compared to the target text:
+let errorCount = 0;
+let previousInputLength = 0;
+let testFinished = false;
 
-        if (textEntered[currentIndex] !== originText[currentIndex]) {
-            errorCount++;
+function countErrors(input, target) {
+    let errors = 0;
+
+    for (let i = 0; i < input.length; i++) {
+        if (input[i] !== target[i]) {
+            errors++;
         }
     }
 
-    lastLength = textEntered.length; // update last length for next check
-    
+    return errors;
+}
+
+// Handle typing, validation, and completion:
+function handleInput() {
+    // Don't allow the test to restart after it has finished
+    if (testFinished) {
+        return;
+    }
+
+    start();
+
+    const textEntered = testArea.value;
+
+    // Check newly typed characters for errors
+    if (textEntered.length > previousInputLength) {
+        for (let i = previousInputLength; i < textEntered.length; i++) {
+            if (textEntered[i] !== originText[i]) {
+                errorCount++;
+            }
+        }
+    }
+
+    previousInputLength = textEntered.length;
+
     document.getElementById("error-count").textContent = errorCount;
 
+    updateAccuracy(textEntered);
+
+    const originTextMatch = originText.substring(0, textEntered.length);
+
+    if (textEntered === originTextMatch) {
+        testWrapper.style.borderColor = "blue";
+    } else {
+        testWrapper.style.borderColor = "red";
+    }
+
+    calculateWPM();
+
+    // Test is complete
     if (textEntered === originText) {
-        testWrapper.style.borderColor = "green"; // correct finish
-        clearInterval(interval); // stop the timer
-
-        saveScore(); // save the score to localStorage
-        calculateWPM(); // calculate and display WPM
+        finishTest();
     }
-    else if (textEntered === originTextMatch) {
-        testWrapper.style.borderColor = "blue"; // correct so far
-    }
-    else {
-        testWrapper.style.borderColor = "red"; // incorrect
-    }
-
-    calculateWPM(); // update WPM in real-time as user types
 }
+
+function finishTest() {
+    testFinished = true;
+
+    clearInterval(interval);
+    timerRunning = false;
+
+    // Get the final exact elapsed time
+    elapsedTime = performance.now() - startTime;
+
+    runTimer();
+
+    testWrapper.style.borderColor = "green";
+
+    calculateWPM();
+    updateAccuracy(testArea.value);
+    saveScore();
+
+    // Prevent further editing
+    testArea.readOnly = true;
+}
+
+function preventPaste(event) {
+    event.preventDefault();
+}
+
 // Start the timer:
 function start() {
-    if (!timerRunning) {
+    if (!timerRunning && !testFinished) {
         timerRunning = true;
-        // Start the timer at 0.01 second intervals:
+        startTime = performance.now();
         interval = setInterval(runTimer, 10);
     }
 }
+
 // Reset everything:
 function reset() {
     clearInterval(interval);
     interval = null;
-    timer = [0, 0, 0];
+
     timerRunning = false;
-    
+    startTime = 0;
+    elapsedTime = 0;
+
     testArea.value = "";
+    testArea.readOnly = false;
+
     theTimer.innerHTML = "00:00:00";
 
     testWrapper.style.borderColor = "grey";
 
     errorCount = 0;
-    lastLength = 0;
+    previousInputLength = 0;
+    testFinished = false;
 
     document.getElementById("error-count").textContent = 0;
+    document.getElementById("accuracy").textContent = "0%";
     document.getElementById("wpm").textContent = 0;
 
     testArea.focus();
 
-    setNewText(); // load a new random text for the next test
+    setNewText();
 }
-
-// Event listeners for keyboard input and the reset button:
-testArea.addEventListener("keypress", start, false);
-testArea.addEventListener("keyup", spellCheck);
+// Event listeners for input and the reset button:
+testArea.addEventListener("input", handleInput);
+testArea.addEventListener("paste", preventPaste); // prevents pasting into the textarea
+testArea.addEventListener("drop", preventPaste); // prevents dropping text into the textarea
 resetButton.addEventListener("click", reset, false);
 
 
 // other functions:
 function getTotalTime() { // returns total time in seconds to compare
-    return timer[0] * 60 + timer[1] + timer[2] / 100;
+    return elapsedTime / 1000;
 }
 
 function saveScore() {
@@ -176,8 +233,20 @@ function calculateWPM() {
 
     if (totalTime === 0) return; // prevent division by zero
 
-    let wpm = (totalChars / 5) / (totalTime / 60); // standard WPM calculation
-    document.getElementById("wpm").textContent = Math.max(1, Math.round(wpm));
+    const wpm = (totalChars / 5) / (totalTime / 60);
+    document.getElementById("wpm").textContent = Math.round(wpm);
+}
+
+function updateAccuracy(input) {
+    if (input.length === 0) {
+        document.getElementById("accuracy").textContent = "0%";
+        return;
+    }
+
+    const accuracy = ((input.length - errorCount) / input.length) * 100;
+
+    document.getElementById("accuracy").textContent =
+        Math.max(0, accuracy).toFixed(1) + "%";
 }
 
 setNewText(); // load initial text on page load
